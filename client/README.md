@@ -5,9 +5,9 @@ Any other language can be used for building the client by generating the corresp
 
 ### Building the client
 Script at `./scripts/build_python_client.sh` can be used to build the client. Client gets built using the following steps:
-* Enables python venv using python3.6 (python3.6 is pre-req, its is expected to be available on the server this client is being built)
+* Enable python venv using python3.6 or higher version (python3.6 is pre-req, its is expected to be available on the server this client is being built)
 * Within the virtual env, install grpcio, grpcio-tools and pyinstaller
-* Generate the python building for proto/srte_policy_api.proto using protoc
+* Generate the python bindings for proto/srte_policy_api.proto using protoc
 * Run pyinstaller to build the executable
 * Copy the executable to bin directory
 * Cleanup
