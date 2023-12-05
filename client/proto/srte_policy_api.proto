@@ -1,0 +1,275 @@
+// This is the first version of the model for SRTE policies and
+// path computation services. Its purpose is to start the conversation
+// with operators and vendors. The RPC/messages model will go through major
+// changes based on the discussions and the consensus among the operators
+// and vendors. The GPB data model should reflect the model from the SRTE policy
+// RFC https://datatracker.ietf.org/doc/rfc9256/.
+
+syntax = "proto3";
+
+option go_package = ".;srte";
+
+package SRTE;
+
+// SRTEPolicy gRPC service provides clients a mechanism
+// to programmatically create/read/update/delete SR-TE and SRv6TE policies.
+// The real-time monitoring of these policies is done via BGP-LS or telemetry.
+service SRTEPolicy {
+    // The SRTEPolicyAdd RPC is used to create/update a policy based on the
+    // passed parameters.
+    rpc SRTEPolicyAdd(PolicyMsg) returns (PolicyOpRsp);
+
+    // The SRTEPolicyDelete RPC is used to delete a policy/candidate-paths.
+    // If the message only contains the key of the policy, then all the CPs with gRPC
+    // originator-protocol are deleted. The policy is also deleted if it has no more CPs.
+    // If the message contains the keys of one or more CPs, then only these CPs are
+    // deleted and they have to be gRPC CPs.
+    // There is no requirement/enforcement for the client to delete the policy/CPs
+    // it created.
+    rpc SRTEPolicyDelete(PolicyMsg) returns (PolicyOpRsp);
+
+    //The SRTEPolicyGet RPC allows the clients to read policy data from SRTE
+    //on-demand. This supports batching.
+    //rpc SRTEPolicyGet(SRTEPolicyGetMsg) returns (SRTEPolicyGetMsgRsp);
+}
+
+message IPv4Address {
+  uint32 v4 = 1;
+}
+
+message IPv6Address {
+  bytes v6 = 1;
+}
+
+message IpAddress {
+  uint32 v4 = 1;
+  bytes v6 = 2;
+}
+
+message PolicyKey {
+  IpAddress headend = 1;
+  uint32 color = 2;
+  IpAddress endpoint = 3;
+}
+
+message CandidatePathKey {
+  message OriginatorID {
+    uint32 ASN = 1;
+    IpAddress nodeID = 2;
+  }
+  OriginatorID originatorID = 1;
+  uint32 originatorProtocol = 2;
+  uint32 discriminator = 3;
+}
+
+message PolicyOpRsp {
+  message PolicyRsp {
+    ReturnCode returnCode = 1;
+    PolicyKey key = 2;
+  }
+  repeated PolicyRsp responses = 1;
+}
+
+enum Dataplane {
+  MPLS = 0;
+  SRV6 = 1;
+}
+
+enum CandidatePathType {
+  DYNAMIC = 0;
+  EXPLICIT = 1;
+  PERFLOW = 2;
+  COMPOSITE = 3;
+}
+
+enum OptimizationMetric {
+  TE = 0;
+  IGP = 1;
+  Latency = 2;
+  HOPS = 3;
+}
+
+message PerflowCP {
+  uint32 DefaultForwardingclass = 1;
+  message Mapping {
+    uint32 forwardingClass = 1;
+    uint32 color = 2;
+  }
+  repeated Mapping mappings = 2;
+}
+
+message CompositeCP {
+  message ConstituentCP {
+    uint32 color = 1;
+    uint32 weight = 2;
+  }
+  repeated ConstituentCP constituent = 1;
+}
+
+message Segment {
+  message TypeA {
+    uint32 label = 1;
+  }
+  message TypeB {
+    IPv6Address SID = 1;
+    uint32 behavior = 2;
+    message Structure {
+      uint32 locatorBlockLength = 1;
+      uint32 locatorNodeLength = 2;
+      uint32 functionLength = 3;
+      uint32 argumentLength = 4;
+    }
+    Structure structure = 3;
+  }
+  message TypeC {
+    IPv4Address prefix = 1;
+    uint32 flexalgo = 2;
+  }
+  message TypeD {
+    IPv6Address prefix = 1;
+    uint32 flexalgo = 2;
+  }
+  message TypeE {
+    IPv4Address prefix = 1;
+    uint32 localInterfaceID = 2;
+  }
+  message TypeF {
+    IPv4Address localInterfaceAddress = 1;
+    IPv4Address remoteInterfaceAddress = 2;
+  }
+  message TypeG {
+    IPv6Address localPrefix = 1;
+    uint32 localInterfaceID = 2;
+    IPv6Address remotePrefix = 3;
+    uint32 remoteInterfaceID = 4;
+  }
+  message TypeH {
+    IPv6Address localInterfaceAddress = 1;
+    IPv6Address remoteInterfaceAddress = 2;
+  }
+  message TypeI {
+    IPv6Address prefix = 1;
+    uint32 flexalgo = 2;
+  }
+  message TypeJ {
+    IPv6Address localPrefix = 1;
+    uint32 localInterfaceID = 2;
+    IPv6Address remotePrefix = 3;
+    uint32 remoteInterfaceID = 4;
+  }
+  oneof SID {
+    TypeA typeA = 1;
+    TypeB typeB = 2;
+    TypeC typeC = 3;
+    TypeD typeD = 4;
+    TypeE typeE = 5;
+    TypeF typeF = 6;
+    TypeG typeG = 7;
+    TypeH typeH = 8;
+    TypeI typeI = 9;
+    TypeJ typeJ = 10;
+  }
+}
+
+message SegmentList {
+  string name = 1;
+  uint32 weight = 2;
+  repeated Segment segments = 3;
+}
+
+message ExplicitCP {
+  //TE constraints can be added here for Explicit CP.
+  //These constraints can be used to validate the segment lists.
+  repeated SegmentList segmentList = 1;
+}
+
+message TEConstraints {
+  message Affinities {
+    repeated string includeAny = 1;
+    repeated string includeAll = 2;
+    repeated string excludeAny = 3;
+  }
+  Affinities affinities = 1;
+
+  message MetricBounds {
+    uint32 igp = 1;
+    uint32 te = 2;
+    uint32 latency = 3;
+  }
+  MetricBounds metricBounds = 2;
+
+  message SegmentConstraints {
+    enum ProtectionType {
+      PROTECTED_PREFERRED = 0;
+      PROTECTED_ONLY = 1;
+      UNPROTECTED_PREFERRED = 2;
+      UNPROTECTED_ONLY = 3;
+    }
+    ProtectionType protection = 1;
+    uint32 flexalgo = 2;
+    uint32 MSD = 3;
+    //more SRv6TE MSD constraints will be added
+  }
+  SegmentConstraints segmentConstraints = 3;
+}
+
+message DynamicCP {
+  OptimizationMetric ometric = 1;
+  TEConstraints constraints = 2;
+  message MetricMargin {
+    enum MarginType {
+      RELATIVE = 0;
+      ABSOLUTE = 1;
+    }
+    MarginType type = 1;
+    uint32 value = 2;
+  }
+  MetricMargin metricMargin = 3;
+  // This flag is to turn on path computation delegation.
+  // When this flag is set, the router delegates to whatever
+  // path computer that is configured/used by the router.
+  bool delegate = 4;
+}
+
+message CandidatePath {
+  CandidatePathKey key = 1;
+  string name = 2;
+  uint32 preference = 3;
+  Dataplane dataplane = 4;
+  oneof CP {
+    DynamicCP dynamic = 5;
+    ExplicitCP explicit = 6;
+    PerflowCP perflow = 7;
+    CompositeCP composite = 8;
+  }
+}
+
+message SRv6BindingSID {
+  string locatorName = 1;
+  uint32 behavior = 2;
+  IPv6Address SID = 3;
+}
+
+enum BindingSIDAllocationMode {
+    BSID_EXPLICIT = 0;
+    BSID_DYNAMIC  = 1;
+}
+
+message Policy {
+  PolicyKey key = 1;
+  bool transitEligible = 2;
+  repeated CandidatePath CPs = 3;
+  BindingSIDAllocationMode bindingSIDAllocation = 4;
+  uint32 mplsBindingSID = 5;
+  SRv6BindingSID srv6BindingSID = 6;
+}
+
+message PolicyMsg {
+  repeated Policy policies = 1;
+}
+
+enum ReturnCode {
+  SUCCESS = 0;
+  FAIL = 1;
+}
+

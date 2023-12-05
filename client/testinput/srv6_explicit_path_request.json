@@ -1,0 +1,79 @@
+{
+    "policies": [
+        {
+            "key": {
+                "color": 30,
+                "endpoint": "3:3::33",
+                "headend": "1:1::11"
+            },
+            "CPs": [
+                {
+                    "explicit": [
+                        {
+                            "segmentList": {
+                                "name": "test-srv6",
+                                "weight": 10,
+                                "segments": {
+                                    "typeB": [
+                                        "fccc:ccc1:2::",
+                                        "fccc:ccc1:3::"
+                                    ]
+                                }
+                            }
+                        }
+                    ],
+                    "preference": 100,
+                    "dataplane": 1,
+                    "key": {
+                        "originatorID": {
+                            "ASN": 1000,
+                            "nodeID": "1.1.1.1"
+                        },
+                        "discriminator": 100,
+                        "originatorProtocol": 40
+                    }
+                },
+                {
+                    "explicit": [
+                        {
+                            "segmentList": {
+                                "name": "test-srv6-2",
+                                "weight": 10,
+                                "segments": {
+                                    "typeB": [
+                                        "fccc:ccc1:2:e004::"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "segmentList": {
+                                "name": "test-srv6-3",
+                                "segments": {
+                                    "typeB": [
+                                        "fccc:ccc1:3::"
+                                    ]
+                                }
+                            }
+                        }
+                    ],
+                    "preference": 200,
+                    "dataplane": 1,
+                    "key": {
+                        "originatorID": {
+                            "ASN": 1000,
+                            "nodeID": "1.1.1.1"
+                        },
+                        "discriminator": 200,
+                        "originatorProtocol": 40
+                    }
+                }
+            ],
+            "bindingSIDAllocation": 1,
+            "srv6BindingSID": {
+                "locatorName": "loc1",
+                "behavior": 71
+            }
+        }
+    ]
+}
